@@ -2,7 +2,7 @@
 const Horde = require('./Horde');
 const uuidv4 = require('uuid').v4;
 
-const messages = new Set();
+
 let gameState = "lobby";
 let generator = "Mock";
 const users = new Map();
@@ -26,7 +26,6 @@ function fakeWaitForServer() {
     }, length);
   });
 }
-const messageExpirationTimeMS = 5*60 * 1000;
 
 class Connection {
   constructor(io, socket) {
@@ -34,6 +33,10 @@ class Connection {
     //this.asyncCall();
     this.socket = socket;
     this.io = io;
+
+
+    
+
     //Game state
     socket.on('getGameState', () => this.getGameState());
     socket.on('setGameState', (state) => this.handleSetGameState(state));
@@ -43,12 +46,13 @@ class Connection {
 
     //Users
     socket.on('getUsers', () => this.getUsers());
-    socket.on('addUser', (user) => this.handleAddUser(user));
+    socket.on('addUser', ({name, userID}) => this.handleAddUser({name, userID}));
+    socket.on('getUserID', () => this.getUserID());
     
 
     //Prompts
     //socket.on('getPrompts', () => this.getUsers());
-    socket.on('addPrompt', (prompt) => this.handleAddPrompt(prompt));
+    socket.on('addPrompt', ({prompt, userID}) => this.handleAddPrompt({prompt, userID}));
     
     //images
     socket.on('updateImages', () => this.updateImages());
@@ -57,14 +61,15 @@ class Connection {
     socket.on('getVotes', () => this.getVotes());
     socket.on('addVote', (vote) => this.handleAddVote(vote));
     
-    //Messages - DELETE
-    socket.on('getMessages', () => this.getMessages());
-    socket.on('message', (value) => this.handleMessage(value));
+    
 
     //General
     socket.on('disconnect', () => this.disconnect());
     socket.on('connect_error', (err) => {
       console.log(`connect_error due to ${err.message}`);
+    });
+    socket.onAny((event, ...args) => {
+      console.log(event, args);
     });
   }
   async updateImages() {
@@ -75,14 +80,16 @@ class Connection {
       if(generator === 'Mock') {
         fakeWaitForServer().then(this.mockImage);
       } else if (generator === 'Stable Horde') {
-        console.log("Image", u.imageid)
-        horde.checkImage(u.imageid).then(function(output) {
-          console.log("SECOND",output);
-          if(output.done === true) {
-            return {image: output.generations[0].img}
-          }
-          return;
-        }).then((l) => this.updateImageData(l, key))
+        console.log("Image", u.imageid);
+        if(!u.image) {
+          horde.checkImage(u.imageid).then(function(output) {
+            console.log("SECOND",output);
+            if(output.done === true) {
+              return {image: output.generations[0].img}
+            }
+            return;
+          }).then((l) => this.updateImageData(l, key))  
+        }
       } else {//if(generator === 'Mock') {
         console.log('GENERATOR NOT SUPPORTED', generator);
       }
@@ -113,13 +120,7 @@ Dall-e
 
   }
 
-  sendMessage(message) {
-    this.io.sockets.emit('message', message);
-  }
-  
-  getMessages() {
-    messages.forEach((message) => this.sendMessage(message));
-  }
+ 
   ///Game state
   getGameState() {
     this.io.sockets.emit('gameState', gameState);
@@ -135,13 +136,18 @@ Dall-e
   getUsers() {
     this.io.sockets.emit('users', Array.from(users.values()));
   }
-  handleAddUser(value) {
+  getUserID() {
+    this.io.sockets.emit('userID', Array.from(users.values()));
+  }
+  handleAddUser({name, userID}) {
+    console.log("handleAddUser", name, userID)
     const user = {
-      id: uuidv4(),
-      value,
+      userID,
+      name,
       time: Date.now()
     };
-    users.set(this.socket.id, user);
+    users.set(userID, user);
+    //this.io.sockets.emit('userid', user.id));
     this.getUsers();
   }
 
@@ -167,44 +173,25 @@ Dall-e
     
   }
   ///Prompt
-  handleAddPrompt(prompt) {
+  handleAddPrompt({prompt, userID}) {
     console.log(prompt, Array.from(users.keys()), Array.from(users.values()), users)
-    var socketID = this.socket.id;
-    var olduser = users.get(this.socket.id);
+    var olduser = users.get(userID);
 
     if(olduser && prompt && olduser.prompt !== prompt) {
       var promptedUser = {...olduser, prompt};
-      users.set(socketID, promptedUser);
+      users.set(userID, promptedUser);
       this.getUsers(); 
       console.log("Gen image:"); 
       this.generateImage(prompt).then((x) => {
         console.log("GENED image - now update", x)
-        this.updateImageData(x,socketID);
+        this.updateImageData(x,userID);
       });
     }
   }
   
-  handleMessage(value) {
-    const message = {
-      id: uuidv4(),
-      user: users.get(this.socket.id) || defaultUser,
-      value,
-      time: Date.now()
-    };
+ 
 
-    messages.add(message);
-    this.sendMessage(message);
-
-    setTimeout(
-      () => {
-        messages.delete(message);
-        this.io.sockets.emit('deleteMessage', message.id);
-      },
-      messageExpirationTimeMS,
-    );
-  }
-
-  disconnect() {
+  disconnect() { //TODO; NOT SURE THIS CAN WORK
     users.delete(this.socket.id);
   }
 }

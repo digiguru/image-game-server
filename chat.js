@@ -47,7 +47,7 @@ class Connection {
     //Users
     socket.on('getUsers', () => this.getUsers());
     socket.on('addUser', ({name, userID}) => this.handleAddUser({name, userID}));
-    socket.on('getUserID', () => this.getUserID());
+   
     
 
     //Prompts
@@ -58,8 +58,8 @@ class Connection {
     socket.on('updateImages', () => this.updateImages());
 
     //vote
-    socket.on('getVotes', () => this.getVotes());
-    socket.on('addVote', (vote) => this.handleAddVote(vote));
+    socket.on('vote', ({votedBy,votedFor}) => this.handleVote({votedBy,votedFor}));
+    socket.on('unvote', ({votedBy,votedFor}) => this.handleUnvote({votedBy,votedFor}));
     
     
 
@@ -134,17 +134,20 @@ Dall-e
   }
   ///Users
   getUsers() {
-    this.io.sockets.emit('users', Array.from(users.values()));
+    console.log("USERS", users.values());
+    let output = Array.from(users.values()).map(user => {
+      return {...user, ...{votes: Array.from(user.votes.values())}}
+    });
+    this.io.sockets.emit('users', output);
   }
-  getUserID() {
-    this.io.sockets.emit('userID', Array.from(users.values()));
-  }
+
   handleAddUser({name, userID}) {
     console.log("handleAddUser", name, userID)
     const user = {
       userID,
       name,
-      time: Date.now()
+      time: Date.now(),
+      votes: new Set()
     };
     users.set(userID, user);
     //this.io.sockets.emit('userid', user.id));
@@ -186,6 +189,25 @@ Dall-e
         console.log("GENED image - now update", x)
         this.updateImageData(x,userID);
       });
+    }
+  }
+  handleVote({votedBy,votedFor}) {
+    var olduser = users.get(votedFor);
+    console.log("VOTE", votedBy, votedFor, olduser, olduser.votes);
+    if(olduser && votedBy && votedFor && !olduser.votes.has(votedBy)) {
+      olduser.votes.add(votedBy);
+      users.set(votedFor, olduser);
+      this.getUsers();
+    }
+  }
+
+  handleUnvote({votedBy,votedFor}) {
+    var olduser = users.get(votedFor);
+    console.log("UNVOTE", votedBy, votedFor, olduser, olduser.votes);
+    if(olduser && votedBy && votedFor && olduser.votes.has(votedBy)) {
+      olduser.votes.delete(votedBy);
+      users.set(votedFor, olduser);
+      this.getUsers();
     }
   }
   

@@ -96,7 +96,7 @@ class Connection {
         debugMe("StableImage", u.imageid);
         if(!u.image) {
           horde.checkImage(u.imageid).catch((err) => {
-            debugMe("CheckImageErr",err);
+            debugMe("CheckImageErr",err, process.env.HORDE_TOKEN);
           }).then(function(output) {
             debugMe("CheckImage",output);
             if(output.done === true) {
@@ -123,7 +123,7 @@ class Connection {
       });
     } else if (generator === 'Stable Horde') {
       return await horde.promiseImage(prompt).catch((err) => {
-        debugMe("promiseImage",err);
+        debugMe("promiseImageErr",err, process.env.HORDE_TOKEN);
       }).then(function(output) {
         debugMe("FIRST",output);
         return {imageid: output.id};

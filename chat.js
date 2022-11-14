@@ -132,10 +132,10 @@ class Connection {
         return {imageid: output.id};
       })
     } else if (generator === 'Dall-e') {
-      await dalle.promiseImage(prompt).catch((err) => {
+      return await dalle.promiseImage(prompt).catch((err) => {
         debugMe("dalle promiseImageErr",err, process.env.HORDE_TOKEN);
       }).then(function(output) {
-        debugMe("DALLE Output",output);
+        debugMe("DALLE Output",output.data.data);
         return {image: output.data.data[0].url};
       })
       // //image_url = response.data.data[0].url;

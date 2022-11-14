@@ -2,7 +2,6 @@
 const Horde = require('./Horde');
 const uuidv4 = require('uuid').v4;
 
-
 let gameState = "lobby";
 let generator = "Mock";
 const users = new Map();
@@ -175,6 +174,7 @@ Dall-e
 
     
   }
+
   
   ///Prompt
   handleAddPrompt({prompt, userID}) {

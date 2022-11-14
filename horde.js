@@ -21,7 +21,10 @@ class Horde {
     }
     promiseImage (prompt) {
         return this.stable_horde.postAsyncGenerate({
-            prompt: prompt
+            prompt: prompt,
+            options: {
+                token: process.env.HORDE_TOKEN
+            }
         });
             // start the generation of an image with the given payload
        

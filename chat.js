@@ -71,9 +71,9 @@ class Connection {
       console.log(event, args);
     });
   }
-  debug = (debug) => {
-    console.log(debug);
-    this.io.sockets.emit('debug', {debug, time: Date.now()});
+  debug = (...args) => {
+    console.log(args);
+    this.io.sockets.emit('debug', {debug: {...args}, time: Date.now()});
   }
   reset = () => {
     gameState = "lobby";

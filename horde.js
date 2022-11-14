@@ -15,7 +15,8 @@ class Horde {
             cache_interval: 1000 * 10,
             cache: {
                 generations_check: 1000 * 30
-            }
+            },
+            default_token: process.env.HORDE_TOKEN
         })
     }
     promiseImage (prompt) {

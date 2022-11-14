@@ -1,5 +1,4 @@
-//const Horde = require('./Horde');
-const Horde = require('./Horde');
+const Horde = require('./horde');
 const uuidv4 = require('uuid').v4;
 
 let gameState = "lobby";

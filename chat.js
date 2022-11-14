@@ -2,7 +2,7 @@ const Horde = require('./horde');
 const uuidv4 = require('uuid').v4;
 
 let gameState = "lobby";
-let generator = "Mock";
+let generator = "Stable Horde";
 const users = new Map();
 const horde = new Horde();
 //const prompts = new Map();
@@ -33,6 +33,7 @@ class Connection {
     this.io = io;
 
 
+    socket.on('reset', () => this.reset());
     
 
     //Game state
@@ -69,6 +70,12 @@ class Connection {
     socket.onAny((event, ...args) => {
       console.log(event, args);
     });
+  }
+  reset = () => {
+    gameState = "lobby";
+    generator = "Stable Horde";
+    users = new Map();
+    horde = new Horde();
   }
   async updateImages() {
     console.log("UPDATE ALL IMAGES");

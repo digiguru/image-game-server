@@ -85,9 +85,9 @@ class Connection {
   }
   async updateImages() {
     this.debug("UPDATE ALL IMAGES", users.keys());
-
+    let debugMe = this.debug;
     Array.from(users.keys()).forEach(key => {
-      let debugMe = this.debug;
+      
       let u = users.get(key);
       debugMe("ROW", u);
       if(generator === 'Mock') {
@@ -95,7 +95,9 @@ class Connection {
       } else if (generator === 'Stable Horde') {
         debugMe("StableImage", u.imageid);
         if(!u.image) {
-          horde.checkImage(u.imageid).then(function(output) {
+          horde.checkImage(u.imageid).catch((err) => {
+            debugMe("CheckImageErr",err);
+          }).then(function(output) {
             debugMe("CheckImage",output);
             if(output.done === true) {
               return {image: output.generations[0].img}
@@ -114,17 +116,20 @@ class Connection {
     return {image: "http://placekitten.com/g/512/512"}
   }
   async generateImage(prompt) {
+    let debugMe = this.debug;
     if(generator === 'Mock') {
       return await fakeWaitForServer().then(() => {
         return this.mockImage()
       });
     } else if (generator === 'Stable Horde') {
-      return await horde.promiseImage(prompt).then(function(output) {
-        console.log("FIRST",output);
+      return await horde.promiseImage(prompt).catch((err) => {
+        debugMe("promiseImage",err);
+      }).then(function(output) {
+        debugMe("FIRST",output);
         return {imageid: output.id};
       })
     } else {//if(generator === 'Mock') {
-      console.log('GENERATOR NOT SUPPORTED', generator);
+      debugMe('GENERATOR NOT SUPPORTED', generator);
     }
 /*
 Dream Studio

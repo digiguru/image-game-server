@@ -71,6 +71,10 @@ class Connection {
       console.log(event, args);
     });
   }
+  debug = (debug) => {
+    console.log(debug);
+    this.io.sockets.emit('debug', debug);
+  }
   reset = () => {
     gameState = "lobby";
     generator = "Stable Horde";
@@ -80,17 +84,18 @@ class Connection {
     this.io.sockets.emit('reset-clients', output);
   }
   async updateImages() {
-    console.log("UPDATE ALL IMAGES");
+    debug("UPDATE ALL IMAGES");
+
     Array.from(users.keys()).forEach(key => {
       let u = users.get(key);
-      console.log("ROW", u);
+      debug("ROW", u);
       if(generator === 'Mock') {
         fakeWaitForServer().then(this.mockImage);
       } else if (generator === 'Stable Horde') {
-        console.log("Image", u.imageid);
+        debug("Image", u.imageid);
         if(!u.image) {
           horde.checkImage(u.imageid).then(function(output) {
-            console.log("SECOND",output);
+            debug("SECOND",output);
             if(output.done === true) {
               return {image: output.generations[0].img}
             }
@@ -98,7 +103,7 @@ class Connection {
           }).then((l) => this.updateImageData(l, key))  
         }
       } else {//if(generator === 'Mock') {
-        console.log('GENERATOR NOT SUPPORTED', generator);
+        debug('GENERATOR NOT SUPPORTED', generator);
       }
     })
    

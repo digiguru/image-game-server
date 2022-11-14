@@ -76,6 +76,8 @@ class Connection {
     generator = "Stable Horde";
     users = new Map();
     horde = new Horde();
+    this.getUsers();
+    this.io.sockets.emit('reset-clients', output);
   }
   async updateImages() {
     console.log("UPDATE ALL IMAGES");

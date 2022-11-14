@@ -1,10 +1,12 @@
+const Dalle = require('./dalle');
 const Horde = require('./horde');
 const uuidv4 = require('uuid').v4;
 
 let gameState = "lobby";
-let generator = "Stable Horde";
+let generator = 'Dall-e';
 const users = new Map();
 const horde = new Horde();
+const dalle = new Dalle();
 //const prompts = new Map();
 const defaultUser = {
   id: 'anon',
@@ -80,6 +82,7 @@ class Connection {
     generator = "Stable Horde";
     users = new Map();
     horde = new Horde();
+    dalle = new Dalle();
     this.getUsers();
     this.io.sockets.emit('reset-clients', output);
   }
@@ -128,7 +131,16 @@ class Connection {
         debugMe("FIRST",output);
         return {imageid: output.id};
       })
+    } else if (generator === 'Dall-e') {
+      await dalle.promiseImage(prompt).catch((err) => {
+        debugMe("dalle promiseImageErr",err, process.env.HORDE_TOKEN);
+      }).then(function(output) {
+        debugMe("DALLE Output",output);
+        return {image: output.data.data[0].url};
+      })
+      // //image_url = response.data.data[0].url;
     } else {//if(generator === 'Mock') {
+     
       debugMe('GENERATOR NOT SUPPORTED', generator);
     }
 /*

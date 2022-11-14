@@ -175,6 +175,7 @@ Dall-e
 
     
   }
+  
   ///Prompt
   handleAddPrompt({prompt, userID}) {
     console.log(prompt, Array.from(users.keys()), Array.from(users.values()), users)
@@ -191,6 +192,7 @@ Dall-e
       });
     }
   }
+
   handleVote({votedBy,votedFor}) {
     var olduser = users.get(votedFor);
     console.log("VOTE", votedBy, votedFor, olduser, olduser.votes);

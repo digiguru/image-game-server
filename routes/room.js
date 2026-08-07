@@ -1,10 +1,7 @@
-var express = require('express');
-const { Server } = require('socket.io');
-var router = express.Router();
+const express = require('express');
+const router = express.Router();
 
-/* GET users listing. */
-router.get('/', function(req, res, next) {
-    
+router.get('/', (_req, res) => {
   res.send('respond with a resource');
 });
 

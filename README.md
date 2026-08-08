@@ -4,7 +4,7 @@ Node.js/Express + Socket.IO backend for a multiplayer image-generation game. Pla
 
 ## What it does
 
-- Serves a small Express HTTP API and health endpoint.
+- Serves a small Express HTTP API, landing page and health endpoint.
 - Maintains the current game state and connected-player data in memory.
 - Broadcasts state changes through Socket.IO.
 - Supports image generation via Stable Horde, DALL-E, or a local mock generator.
@@ -40,7 +40,8 @@ The `Mock` generator does not require external credentials.
 
 | Method | Path | Description |
 | --- | --- | --- |
-| `GET` | `/` | Health response: `{ "name": "image-game-server", "status": "ok" }`. |
+| `GET` | `/` | Serves the existing static landing page. |
+| `GET` | `/health` | JSON health response: `{ "name": "image-game-server", "status": "ok" }`. |
 | `GET` | `/users` | Legacy placeholder users route. |
 | `GET` | `/room` | Legacy placeholder room route. |
 
@@ -90,7 +91,7 @@ npm run build
 
 ## Tests
 
-The current test suite starts the Express application on an ephemeral local port and verifies that the health, users and room routes respond successfully. It is intentionally lightweight and does not call external image-generation APIs.
+The current test suite starts the Express application on an ephemeral local port and verifies the static landing page, health endpoint, users route and room route. It is intentionally lightweight and does not call external image-generation APIs.
 
 Future useful coverage would include Socket.IO game-state transitions, voting, reset behaviour, and provider adapters with mocked HTTP/API clients.
 

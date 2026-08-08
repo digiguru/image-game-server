@@ -40,8 +40,16 @@ function request(path) {
   });
 }
 
-test('GET / exposes a health response', async () => {
+test('GET / serves the landing page', async () => {
   const response = await request('/');
+
+  assert.equal(response.statusCode, 200);
+  assert.match(response.headers['content-type'], /^text\/html/);
+  assert.match(response.body, /Welcome to Express/);
+});
+
+test('GET /health exposes a health response', async () => {
+  const response = await request('/health');
 
   assert.equal(response.statusCode, 200);
   assert.match(response.headers['content-type'], /^application\/json/);

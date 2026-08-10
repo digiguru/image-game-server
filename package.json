@@ -2,13 +2,14 @@
   "name": "chat-server",
   "version": "0.0.0",
   "private": true,
+  "packageManager": "npm@11.16.0",
   "engines": {
     "node": "24.x"
   },
   "scripts": {
     "start": "node ./bin/www",
     "build": "node --check app.js && node --check chat.js && node --check dalle.js && node --check horde.js && node --check routes/index.js && node --check routes/room.js && node --check routes/users.js && node --check bin/www && node --check test/routes.test.js && node --check test/horde.test.js",
-    "lint": "npx --yes eslint@10 .",
+    "lint": "eslint .",
     "test": "node --test"
   },
   "dependencies": {
@@ -20,5 +21,8 @@
     "openai": "^7.4.0",
     "socket.io": "4.8.3",
     "uuid": "14.0.1"
+  },
+  "devDependencies": {
+    "eslint": "^10.8.0"
   }
 }

@@ -27,8 +27,11 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Lint
         run: npm run lint
@@ -38,3 +41,20 @@ jobs:
 
       - name: Build validation
         run: npm run build
+
+      - name: Start smoke test
+        shell: bash
+        run: |
+          PORT=3000 npm start > server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+
+          for attempt in {1..10}; do
+            if curl --fail --silent --output /dev/null http://127.0.0.1:3000/health; then
+              exit 0
+            fi
+            sleep 1
+          done
+
+          cat server.log
+          exit 1

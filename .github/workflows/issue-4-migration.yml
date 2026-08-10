@@ -1,0 +1,49 @@
+name: Issue 4 migration
+
+on:
+  push:
+    branches:
+      - chore/issue-4-security-maintenance
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: chore/issue-4-security-maintenance
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Regenerate lockfile without running dependency scripts
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Clean install without dependency scripts
+        run: npm ci --ignore-scripts
+      - name: Audit dependencies
+        run: |
+          npm audit --audit-level=moderate
+          npm audit --omit=dev --audit-level=high
+      - name: Confirm old esbuild chain is gone
+        run: npm ls esbuild || true
+      - name: Lint
+        run: npm run lint
+      - name: Test
+        run: npm test
+      - name: Build validation
+        run: npm run build
+      - name: Commit regenerated lockfile
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "No lockfile changes required"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "chore: regenerate dependency lockfile"
+          git push

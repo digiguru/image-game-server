@@ -91,7 +91,7 @@ npm run build
 
 ## Tests
 
-The current test suite starts the Express application on an ephemeral local port and verifies the static landing page, health endpoint, users route and room route. It is intentionally lightweight and does not call external image-generation APIs.
+The test suite starts the Express application on an ephemeral local port and verifies the static landing page, health endpoint, users route and room route. It also verifies the Stable Horde and DALL-E adapters with mocked API clients, so no external image-generation APIs are called.
 
 Future useful coverage would include Socket.IO game-state transitions, voting, reset behaviour, and provider adapters with mocked HTTP/API clients.
 
@@ -99,10 +99,12 @@ Future useful coverage would include Socket.IO game-state transitions, voting, r
 
 GitHub Actions runs on pull requests and pushes to `main` using Node.js 24. CI performs:
 
-1. `npm ci`
-2. `npm run lint`
-3. `npm test`
-4. `npm run build`
+1. `npm ci --ignore-scripts`
+2. production dependency audit
+3. `npm run lint`
+4. `npm test`
+5. `npm run build`
+6. startup smoke test against `/health`
 
 ## Project structure
 

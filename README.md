@@ -32,6 +32,7 @@ The server listens on `PORT` when provided, otherwise it defaults to `3000`.
 | --- | --- | --- |
 | `PORT` | No | HTTP/Socket.IO port. Defaults to `3000`. |
 | `HORDE_TOKEN` | For Stable Horde | API token used by the Stable Horde image provider. |
+| `HORDE_API_URL` | No | Optional AI Horde API base URL. Defaults to `https://stablehorde.net/api/v2`. |
 | `DALLE_TOKEN` | For DALL-E | OpenAI API token used by the DALL-E provider. |
 
 The `Mock` generator does not require external credentials.
@@ -73,7 +74,7 @@ Most game behaviour is handled through Socket.IO rather than REST endpoints.
 
 The game currently recognises these generator values:
 
-- `Stable Horde` — submits a generation request and later polls for the generated image.
+- `Stable Horde` — submits a generation request and later polls for the generated image through the AI Horde REST API.
 - `Dall-e` — generates an image through the OpenAI client.
 - `Mock` — returns a placeholder image after a short artificial delay; useful for development without API credentials.
 
@@ -91,7 +92,7 @@ npm run build
 
 ## Tests
 
-The current test suite starts the Express application on an ephemeral local port and verifies the static landing page, health endpoint, users route and room route. It is intentionally lightweight and does not call external image-generation APIs.
+The test suite starts the Express application on an ephemeral local port and verifies the static landing page, health endpoint, users route and room route. It also verifies the Stable Horde and DALL-E adapters with mocked API clients, so no external image-generation APIs are called.
 
 Future useful coverage would include Socket.IO game-state transitions, voting, reset behaviour, and provider adapters with mocked HTTP/API clients.
 
@@ -99,10 +100,12 @@ Future useful coverage would include Socket.IO game-state transitions, voting, r
 
 GitHub Actions runs on pull requests and pushes to `main` using Node.js 24. CI performs:
 
-1. `npm ci`
-2. `npm run lint`
-3. `npm test`
-4. `npm run build`
+1. `npm ci --ignore-scripts`
+2. production dependency audit
+3. `npm run lint`
+4. `npm test`
+5. `npm run build`
+6. startup smoke test against `/health`
 
 ## Project structure
 

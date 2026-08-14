@@ -10,23 +10,66 @@
 }
 
 body {
+  --state-accent: #2457c5;
+  --state-accent-strong: #173d91;
+  --state-soft: #e5ecfb;
+  --state-glow: rgba(36, 87, 197, 0.2);
+  --state-wash: rgba(219, 231, 255, 0.78);
   margin: 0;
   min-height: 100vh;
   padding: 2rem;
+  background:
+    radial-gradient(circle at 12% 8%, var(--state-wash), transparent 30rem),
+    radial-gradient(circle at 92% 18%, var(--state-glow), transparent 24rem),
+    #f5f7fb;
+  transition: background 700ms ease;
+}
+
+body[data-game-state="ideation"] {
+  --state-accent: #7047c7;
+  --state-accent-strong: #4d2b97;
+  --state-soft: #eee8fb;
+  --state-glow: rgba(112, 71, 199, 0.22);
+  --state-wash: rgba(234, 224, 255, 0.8);
+}
+
+body[data-game-state="voting"] {
+  --state-accent: #a65a0a;
+  --state-accent-strong: #743b00;
+  --state-soft: #fff0d8;
+  --state-glow: rgba(202, 116, 25, 0.22);
+  --state-wash: rgba(255, 235, 198, 0.82);
+}
+
+body[data-game-state="results"] {
+  --state-accent: #16805e;
+  --state-accent-strong: #0c5941;
+  --state-soft: #daf4ea;
+  --state-glow: rgba(22, 128, 94, 0.22);
+  --state-wash: rgba(210, 244, 233, 0.82);
 }
 
 main {
   width: min(48rem, 100%);
   margin: 0 auto;
   padding: clamp(1.5rem, 4vw, 3rem);
-  background: white;
+  background: rgba(255, 255, 255, 0.96);
   border: 1px solid #dfe5ef;
   border-radius: 1rem;
   box-shadow: 0 1rem 3rem rgba(23, 32, 51, 0.08);
+  transition: border-color 500ms ease, box-shadow 650ms ease, transform 500ms ease;
 }
 
 main.wide {
   width: min(72rem, 100%);
+}
+
+.game-detail {
+  border-color: color-mix(in srgb, var(--state-accent) 18%, #dfe5ef);
+  box-shadow:
+    0 1rem 3rem rgba(23, 32, 51, 0.08),
+    0 0 0 1px var(--state-glow),
+    0 1.5rem 4rem var(--state-glow);
 }
 
 h1,
@@ -53,6 +96,12 @@ section + section {
   font-size: 0.8rem;
 }
 
+.game-detail > .eyebrow,
+.phase-section .eyebrow {
+  color: var(--state-accent-strong);
+  transition: color 450ms ease;
+}
+
 nav,
 .actions,
 .heading-row,
@@ -70,6 +119,31 @@ nav {
 .heading-row {
   justify-content: space-between;
   align-items: flex-start;
+}
+
+.game-heading {
+  gap: 1.5rem;
+}
+
+.game-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.7rem;
+  align-items: baseline;
+  min-height: 2rem;
+  margin: 0;
+  color: #596579;
+}
+
+.status-phase {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  background: var(--state-soft);
+  color: var(--state-accent-strong);
+  transition: background 450ms ease, color 450ms ease, transform 450ms ease;
 }
 
 .game-picker {
@@ -109,6 +183,13 @@ button,
   text-decoration: none;
   font-weight: 700;
   cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease, background 300ms ease, color 300ms ease;
+}
+
+button:hover,
+.button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0.45rem 1rem rgba(23, 32, 51, 0.13);
 }
 
 button.secondary,
@@ -121,12 +202,6 @@ button:disabled,
 select:disabled {
   opacity: 0.55;
   cursor: not-allowed;
-}
-
-.phase-button.selected {
-  background: #e5ecfb;
-  color: #172033;
-  border-color: #2457c5;
 }
 
 .status-line {
@@ -142,7 +217,7 @@ a {
 a:focus-visible,
 button:focus-visible,
 select:focus-visible {
-  outline: 3px solid #2457c5;
+  outline: 3px solid var(--state-accent);
   outline-offset: 3px;
 }
 
@@ -152,10 +227,152 @@ select:focus-visible {
   font-size: 0.95rem;
 }
 
+.section-heading h2 {
+  margin: 0.15rem 0 0.5rem;
+}
+
+.section-heading p:last-child {
+  margin-bottom: 0;
+}
+
+.phase-section {
+  position: relative;
+  overflow: hidden;
+}
+
+.phase-section::after {
+  position: absolute;
+  z-index: 0;
+  width: 16rem;
+  height: 16rem;
+  right: -8rem;
+  top: -7rem;
+  border-radius: 50%;
+  background: var(--state-glow);
+  content: "";
+  filter: blur(1rem);
+  opacity: 0.55;
+  pointer-events: none;
+  transition: background 500ms ease;
+}
+
+.phase-journey {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1.5rem 0 0;
+}
+
+.phase-journey::before {
+  position: absolute;
+  top: 1.5rem;
+  left: 8%;
+  right: 8%;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--state-soft), var(--state-accent), var(--state-soft));
+  content: "";
+  opacity: 0.6;
+  transition: background 500ms ease;
+}
+
+.phase-step {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.7rem;
+  align-items: center;
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid #dfe5ef;
+  border-radius: 0.9rem;
+  background: rgba(255, 255, 255, 0.94);
+  color: #596579;
+  text-decoration: none;
+  box-shadow: 0 0.35rem 1rem rgba(23, 32, 51, 0.05);
+  transition:
+    transform 350ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 350ms ease,
+    background 450ms ease,
+    color 350ms ease,
+    box-shadow 450ms ease;
+}
+
+.phase-step:hover {
+  transform: translateY(-3px);
+  border-color: var(--state-accent);
+}
+
+.phase-marker {
+  display: inline-grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border: 2px solid #bac5d6;
+  border-radius: 50%;
+  background: white;
+  color: #596579;
+  font-size: 0.8rem;
+  font-weight: 800;
+  transition: all 450ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.phase-copy {
+  display: grid;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.phase-copy strong {
+  color: #172033;
+  transition: color 350ms ease;
+}
+
+.phase-copy small {
+  margin-top: 0.15rem;
+  color: #6a7689;
+}
+
+.phase-step.complete {
+  border-color: color-mix(in srgb, var(--state-accent) 30%, #dfe5ef);
+  background: color-mix(in srgb, var(--state-soft) 48%, white);
+}
+
+.phase-step.complete .phase-marker {
+  border-color: var(--state-accent);
+  background: var(--state-soft);
+  color: var(--state-accent-strong);
+}
+
+.phase-step.current {
+  transform: translateY(-4px) scale(1.02);
+  border-color: var(--state-accent);
+  background: var(--state-accent);
+  color: white;
+  box-shadow: 0 0.8rem 1.8rem var(--state-glow);
+  animation: phase-arrive 650ms cubic-bezier(0.2, 0.9, 0.25, 1.2) both;
+}
+
+.phase-step.current .phase-marker {
+  border-color: white;
+  background: white;
+  color: var(--state-accent-strong);
+  box-shadow: 0 0 0 0.35rem rgba(255, 255, 255, 0.18);
+}
+
+.phase-step.current .phase-copy strong,
+.phase-step.current .phase-copy small {
+  color: white;
+}
+
 .player-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
   gap: 1rem;
+  perspective: 60rem;
 }
 
 .player-card {
@@ -163,6 +380,19 @@ select:focus-visible {
   border: 1px solid #dfe5ef;
   border-radius: 0.75rem;
   background: #fafbfe;
+  box-shadow: 0 0.4rem 1rem rgba(23, 32, 51, 0.04);
+  transition: transform 300ms ease, border-color 300ms ease, box-shadow 300ms ease;
+}
+
+.player-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--state-accent) 35%, #dfe5ef);
+  box-shadow: 0 0.7rem 1.6rem rgba(23, 32, 51, 0.09);
+}
+
+.player-card-enter {
+  animation: card-enter 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--card-index, 0) * 70ms);
 }
 
 .player-card h3 {
@@ -179,11 +409,140 @@ select:focus-visible {
   background: #eef2f8;
 }
 
+.phase-change {
+  animation: state-shell-change 850ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.phase-grid-change .player-card {
+  animation: card-phase-shift 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--card-index, 0) * 55ms);
+}
+
+.state-burst {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.state-burst span {
+  --burst-angle: calc(var(--particle-index) * 20deg);
+  position: absolute;
+  top: 22%;
+  left: 50%;
+  width: 0.55rem;
+  height: 0.9rem;
+  border-radius: 0.15rem;
+  background: #16805e;
+  opacity: 0;
+  animation: result-burst 1500ms cubic-bezier(0.15, 0.7, 0.2, 1) forwards;
+  animation-delay: calc((var(--particle-index) % 4) * 35ms);
+}
+
+.state-burst span:nth-child(3n + 1) {
+  background: #f2b134;
+}
+
+.state-burst span:nth-child(3n + 2) {
+  background: #7047c7;
+}
+
 code {
   padding: 0.1rem 0.35rem;
   border-radius: 0.35rem;
   background: #eef2f8;
   font-size: 0.95em;
+}
+
+::view-transition-old(root) {
+  animation-duration: 220ms;
+  animation-timing-function: ease-in;
+}
+
+::view-transition-new(root) {
+  animation-duration: 480ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes phase-arrive {
+  0% {
+    transform: translateY(0) scale(0.96);
+    opacity: 0.7;
+  }
+  60% {
+    transform: translateY(-6px) scale(1.035);
+  }
+  100% {
+    transform: translateY(-4px) scale(1.02);
+    opacity: 1;
+  }
+}
+
+@keyframes state-shell-change {
+  0% {
+    transform: scale(0.995);
+    box-shadow: 0 1rem 3rem rgba(23, 32, 51, 0.08);
+  }
+  45% {
+    transform: scale(1.004);
+    box-shadow:
+      0 1rem 3rem rgba(23, 32, 51, 0.08),
+      0 0 0 0.45rem var(--state-glow),
+      0 2rem 5rem var(--state-glow);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.8rem) rotateX(3deg) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes card-phase-shift {
+  0% {
+    transform: translateY(0);
+  }
+  45% {
+    transform: translateY(-0.35rem);
+    border-color: var(--state-accent);
+    box-shadow: 0 0.8rem 1.8rem var(--state-glow);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes result-burst {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--burst-angle)) translateY(0) rotate(0deg) scale(0.3);
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--burst-angle)) translateY(42vh) rotate(540deg) scale(1);
+  }
+}
+
+@media (max-width: 52rem) {
+  .phase-journey {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .phase-journey::before {
+    display: none;
+  }
 }
 
 @media (max-width: 40rem) {
@@ -198,9 +557,33 @@ code {
     border-radius: 0;
   }
 
+  .phase-journey {
+    grid-template-columns: 1fr;
+  }
+
+  .phase-step.current {
+    transform: none;
+  }
+
   .game-picker > select,
   .game-picker > button,
   .actions > .button {
     width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
   }
 }

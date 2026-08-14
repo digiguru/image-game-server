@@ -1,8 +1,10 @@
 const createSocketServer = require('../socket-server');
 
-// Vercel mounts this function at /api/socket-io. Socket.IO then handles its
-// normal /socket.io path beneath that mount, giving clients the public path
-// /api/socket-io/socket.io.
-const { server } = createSocketServer();
+// Vercel exposes this file at /api/socket-io. Mount Socket.IO on that exact
+// route rather than relying on an additional nested /socket.io path, which
+// Vercel does not route to this function automatically.
+const { server } = createSocketServer(undefined, {
+  path: '/api/socket-io',
+});
 
 module.exports = server;

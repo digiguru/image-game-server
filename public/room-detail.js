@@ -217,12 +217,14 @@ function animatePhaseChange(nextState) {
 }
 
 function applySnapshot(roomID, game) {
-  const stateChanged = Boolean(renderedState && renderedState !== game.state);
+  const firstRender = renderedState === undefined;
+  const stateChanged = !firstRender && renderedState !== game.state;
+  const phaseNeedsRender = firstRender || stateChanged;
 
   const updateDOM = () => {
     document.body.dataset.gameState = game.state;
     renderStatus(game);
-    renderPhaseActions(roomID, game.state);
+    if (phaseNeedsRender) renderPhaseActions(roomID, game.state);
     renderPlayers(Array.isArray(game.users) ? game.users : []);
   };
 

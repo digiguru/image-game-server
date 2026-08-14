@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node ./bin/www",
-    "build": "node --check app.js && node --check chat.js && node --check dalle.js && node --check horde.js && node --check routes/index.js && node --check routes/room.js && node --check routes/users.js && node --check bin/www && node --check test/routes.test.js && node --check test/horde.test.js && node --check test/dalle.test.js",
+    "build": "node --check app.js && node --check socket-server.js && node --check api/socket-io.js && node --check chat.js && node --check dalle.js && node --check horde.js && node --check routes/index.js && node --check routes/room.js && node --check routes/users.js && node --check bin/www && node --check test/routes.test.js && node --check test/socket-server.test.js && node --check test/chat.test.js && node --check test/horde.test.js && node --check test/dalle.test.js",
     "lint": "eslint .",
     "test": "node --test"
   },

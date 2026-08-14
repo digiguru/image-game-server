@@ -1,58 +1,61 @@
 # Image Game Server
 
-Node.js/Express + Socket.IO backend for the multiplayer Image Game. Players join isolated game rooms, submit prompts, generate images through a configured provider, and vote on each other's results in real time.
+Node.js/Express + Socket.IO backend for the multiplayer Image Game. Players join isolated rooms, submit prompts, generate images through a configured provider and vote on each other's results in real time.
 
-## What it does
+## Current architecture
 
-- Serves a small Express HTTP API, landing page and health endpoint.
-- Maintains independent in-memory `GameSession` state per room.
-- Broadcasts room-scoped state changes through Socket.IO.
-- Supports image generation via Stable Horde, DALL-E, or the local Mock provider.
-- Supports prompt submission, voting/unvoting and game resets.
-- Validates room IDs, game states, generators, player identities/names and prompts.
+The server is intentionally split into explicit layers:
 
-> Game state is currently in-memory only. Restarting or moving between independent server instances can lose or split rooms. Shared persistence is intentionally deferred to the later production-hardening stage.
+- `game-session.js` — game domain/state model plus the in-memory room registry.
+- `game-service.js` — prompt/image orchestration against the selected provider.
+- `image-providers.js` — normalized Mock, Stable Horde and DALL-E provider adapters.
+- `chat.js` — Socket.IO transport, room membership, event mapping and broadcasts.
+- `socket-server.js` — reusable HTTP/Socket.IO server factory shared by local and Vercel entry points.
+- `api/socket-io.js` — Vercel realtime function entry point.
+- `logger.js` — structured JSON operational logging.
 
-## Requirements
+Game/provider registries are injectable so domain and transport tests do not depend on process-global state.
+
+> Game state is currently in memory only. Restarting or moving between independent server instances can lose or split rooms. Shared persistence remains intentionally deferred to the later production-hardening stage.
+
+## Requirements and setup
 
 - Node.js 24
 - npm
-
-## Setup
 
 ```bash
 npm ci
 npm start
 ```
 
-The server listens on `PORT` when provided, otherwise it defaults to `3000`.
+The local server listens on `PORT` when provided, otherwise `3000`.
 
 ## Environment variables
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `PORT` | No | HTTP/Socket.IO port. Defaults to `3000`. |
-| `HORDE_TOKEN` | For Stable Horde | API token used by the Stable Horde image provider. |
-| `DALLE_TOKEN` | For DALL-E | OpenAI API token used by the DALL-E provider. |
+| `PORT` | No | HTTP/Socket.IO port; defaults to `3000`. |
+| `HORDE_TOKEN` | Stable Horde only | Stable Horde API token. |
+| `DALLE_TOKEN` | DALL-E only | OpenAI API token. |
 
-The `Mock` generator does not require external credentials.
+The `Mock` generator requires no external credentials and is the default choice for automated/full-stack testing.
 
 ## HTTP endpoints
 
 | Method | Path | Description |
 | --- | --- | --- |
-| `GET` | `/` | Serves the small static landing page. |
-| `GET` | `/health` | JSON health response: `{ "name": "image-game-server", "status": "ok" }`. |
-| `GET` | `/users` | Legacy placeholder users route. |
-| `GET` | `/room` | Legacy placeholder room route. |
+| `GET` | `/` | Human-readable service landing page with game/health links. |
+| `GET` | `/health` | Non-secret service metadata including status, version, uptime and timestamp. |
+| `GET` | `/users` | Legacy placeholder route. |
+| `GET` | `/room` | Legacy placeholder route. |
 
-Most game behaviour is handled through Socket.IO rather than REST endpoints.
+Most game behaviour is handled through Socket.IO.
 
-## Socket.IO events
+## Socket.IO protocol
 
-### Client to server
+Client → server:
 
-- `joinGame` — select/create a room; invalid room IDs fall back to `default`.
+- `joinGame`
 - `reset`
 - `getGameState`
 - `setGameState`
@@ -64,7 +67,7 @@ Most game behaviour is handled through Socket.IO rather than REST endpoints.
 - `vote`
 - `unvote`
 
-### Server to clients
+Server → client:
 
 - `joinedGame`
 - `gameState`
@@ -72,57 +75,39 @@ Most game behaviour is handled through Socket.IO rather than REST endpoints.
 - `protocolError`
 - `reset-clients`
 
-## Architecture
-
-The server is split into explicit layers so Socket.IO no longer owns the game rules or provider-specific behaviour:
-
-- `game-session.js` — game domain/state model plus the in-memory room registry.
-- `game-service.js` — prompt/image orchestration against the selected provider.
-- `image-providers.js` — normalized Mock, Stable Horde and DALL-E provider adapters.
-- `chat.js` — Socket.IO transport, room membership, event mapping and broadcasts.
-- `socket-server.js` — reusable HTTP/Socket.IO server factory shared by local and Vercel entry points.
-- `api/socket-io.js` — Vercel realtime function entry point.
-
-The transport accepts injectable game/provider registries, which keeps domain/provider tests independent from process-global state.
+Room IDs, game states, generators, player identities/names and prompts are validated before mutation.
 
 ## Image providers
 
-The game recognises these generator values:
+- `Stable Horde` — submits generation then refreshes until an image is ready.
+- `Dall-e` — uses the OpenAI image client and normalizes its response to the game contract.
+- `Mock` — returns a deterministic placeholder after a short artificial delay.
 
-- `Stable Horde` — submits a generation request and later polls for the completed image.
-- `Dall-e` — generates an image through the OpenAI client and normalizes the response into the game image contract.
-- `Mock` — returns a placeholder image after a short artificial delay; used by development and full-stack tests without external credentials.
+Provider-specific response shapes stay inside the adapters instead of leaking into Socket.IO handlers.
 
-Provider-specific API response shapes and failures are contained inside the provider adapters rather than leaking into Socket.IO handlers.
+## Observability
 
-## Development commands
+Application lifecycle events are written as one-line JSON records suitable for Vercel log search. Events include socket connection/disconnection, room joins, game state/generator transitions, player joins, votes, protocol rejections and image-provider duration/failures.
+
+Prompt text and provider credentials are **not** logged. Provider telemetry records room/player IDs, provider name, duration and result/failure metadata only.
+
+See [`OPERATIONS.md`](./OPERATIONS.md) for event names and troubleshooting guidance.
+
+## Development and quality gates
 
 ```bash
 npm run lint
 npm test
+npm run test:coverage
 npm run build
+npm run check
 ```
 
-- `npm run lint` runs ESLint 10 with the repository flat config.
-- `npm test` runs the Node.js built-in test runner.
-- `npm run build` performs syntax validation across server and test entry points. This project does not have a compile/bundle step.
+`npm run test:coverage` uses Node 24's built-in coverage collector and enforces minimum line/function/branch coverage. `npm run build` is a syntax-validation gate rather than a bundling step.
 
-## Tests
+Automated coverage includes HTTP/static routes, health metadata, `GameSession`, `GameService`, provider contracts, structured logging, Socket.IO room/protocol behaviour and a real Engine.IO/Socket.IO WebSocket handshake.
 
-Coverage includes:
-
-- Express/static routes and `/health`.
-- `GameSession` state isolation, validation, prompts, votes and player removal.
-- `GameService` prompt-generation and provider-refresh orchestration.
-- Mock, Stable Horde and DALL-E provider contracts with fake clients.
-- Socket.IO transport behaviour including room isolation, state changes, reset, users, prompts, voting, disconnects and protocol errors.
-- A real Engine.IO/Socket.IO WebSocket handshake smoke test against an ephemeral local server.
-
-No external image-generation APIs are called by the automated suite.
-
-## CI
-
-GitHub Actions runs on pull requests and pushes to `main` using Node.js 24. CI performs deterministic dependency install, production dependency audit, lint, tests, syntax/build validation and a startup `/health` smoke test. CodeQL runs separately.
+GitHub Actions runs deterministic install, production dependency audit, lint, coverage-enforced tests, syntax/build validation and a startup `/health` smoke test. CodeQL runs separately.
 
 ## Project structure
 
@@ -134,22 +119,24 @@ socket-server.js           Shared HTTP + Socket.IO server factory
 chat.js                    Socket.IO transport/protocol mapping
 game-session.js            Game domain state + room registry
 game-service.js            Game/image orchestration
-image-providers.js         Provider adapters and normalized image contract
-dalle.js                   Low-level OpenAI image client wrapper
-horde.js                   Low-level Stable Horde client wrapper
+image-providers.js         Provider adapters
+logger.js                  Structured operational logger
+dalle.js                   Low-level OpenAI image wrapper
+horde.js                   Low-level Stable Horde wrapper
 routes/                     Express routes
+public/                     Service landing page
 test/                       Node.js tests
 .github/workflows/ci.yml    CI validation
 ```
 
 ## Deferred production hardening
 
-The following are deliberately not part of the current modernization stage:
+These are deliberately **not** part of this modernization pass:
 
 - host authentication/authority
 - shared persistent room state/pub-sub
 - restrictive production CORS and rate limiting
-- production observability/alerting
+- alerting/error aggregation beyond searchable structured logs
 
 Those should be addressed together when the application is intentionally locked down for production.
 

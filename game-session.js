@@ -1,5 +1,18 @@
+const crypto = require('node:crypto');
+
 const VALID_STATES = new Set(['lobby', 'ideation', 'voting', 'results']);
 const VALID_GENERATORS = new Set(['Mock', 'Stable Horde', 'Dall-e']);
+const DEFAULT_GAME_ID = 'default';
+
+function normaliseGameID(value) {
+  if (typeof value !== 'string') return DEFAULT_GAME_ID;
+  const gameID = value.trim();
+  return /^[a-zA-Z0-9_-]{1,40}$/.test(gameID) ? gameID : DEFAULT_GAME_ID;
+}
+
+function createGameID() {
+  return crypto.randomUUID().replaceAll('-', '').slice(0, 8).toUpperCase();
+}
 
 class GameSession {
   constructor(id) {
@@ -92,6 +105,16 @@ class GameSession {
       votes: Array.from(user.votes),
     }));
   }
+
+  snapshot() {
+    return {
+      id: this.id,
+      state: this.state,
+      generator: this.generator,
+      playerCount: this.users.size,
+      users: this.snapshotUsers(),
+    };
+  }
 }
 
 class GameRegistry {
@@ -99,11 +122,29 @@ class GameRegistry {
     this.games = new Map();
   }
 
-  get(id = 'default') {
-    const roomID = typeof id === 'string' && /^[a-zA-Z0-9_-]{1,40}$/.test(id) ? id : 'default';
-    if (!this.games.has(roomID)) this.games.set(roomID, new GameSession(roomID));
-    return this.games.get(roomID);
+  get(id = DEFAULT_GAME_ID) {
+    const gameID = normaliseGameID(id);
+    if (!this.games.has(gameID)) this.games.set(gameID, new GameSession(gameID));
+    return this.games.get(gameID);
+  }
+
+  create() {
+    let gameID = createGameID();
+    while (this.games.has(gameID)) gameID = createGameID();
+    return this.get(gameID);
+  }
+
+  list() {
+    return Array.from(this.games.values()).map((game) => game.snapshot());
   }
 }
 
-module.exports = { GameSession, GameRegistry, VALID_STATES, VALID_GENERATORS };
+module.exports = {
+  GameSession,
+  GameRegistry,
+  VALID_STATES,
+  VALID_GENERATORS,
+  DEFAULT_GAME_ID,
+  normaliseGameID,
+  createGameID,
+};

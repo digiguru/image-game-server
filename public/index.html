@@ -3,20 +3,39 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Realtime backend for the AI Image Game">
+  <meta name="description" content="Create and inspect in-memory AI Image Game rooms">
   <title>Image Game Server</title>
   <link rel="stylesheet" href="/stylesheets/style.css">
 </head>
 <body>
   <main>
-    <p class="eyebrow">Realtime game service</p>
+    <p class="eyebrow">In-memory game dashboard</p>
     <h1>Image Game Server</h1>
-    <p>This service powers rooms, prompts, image generation and voting for the AI Image Game.</p>
+    <p>Create a room here, then run the host controls in the client without losing this dashboard.</p>
+
+    <section aria-labelledby="new-game-heading">
+      <h2 id="new-game-heading">Start a new game</h2>
+      <button id="start-game" type="button" class="button">Start new game</button>
+      <p id="new-game-status" role="status" class="status-line">A unique 8-character game slug will appear here.</p>
+      <a id="popup-fallback" class="button secondary-link" target="_blank" rel="noopener noreferrer" hidden>Open host</a>
+    </section>
+
+    <section aria-labelledby="games-heading">
+      <h2 id="games-heading">Recent games</h2>
+      <p>Games created in this browser are remembered in localStorage so you can get back to their server detail pages.</p>
+      <div class="game-picker">
+        <label for="game-select">Game</label>
+        <select id="game-select"></select>
+        <button id="open-game-details" type="button">Open game details</button>
+      </div>
+      <p id="games-empty" class="note">No games created in this browser yet.</p>
+    </section>
+
     <nav aria-label="Service links">
-      <a class="button" href="https://image-game-client.vercel.app/">Open the game</a>
       <a href="/health">View health JSON</a>
     </nav>
-    <p class="note">Game state is currently process-local. Persistence and production security hardening are intentionally deferred.</p>
+    <p class="note">Game state remains process-local. Recent room slugs are remembered only in this browser; durable persistence and production security are still intentionally deferred.</p>
   </main>
+  <script src="/dashboard.js" defer></script>
 </body>
 </html>

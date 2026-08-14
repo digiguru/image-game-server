@@ -20,13 +20,14 @@ after(async () => {
   });
 });
 
-function request(path) {
+function request(path, { method = 'GET' } = {}) {
   return new Promise((resolve, reject) => {
-    const req = http.get(
+    const req = http.request(
       {
         hostname: '127.0.0.1',
         port,
         path,
+        method,
       },
       (res) => {
         let body = '';
@@ -38,15 +39,19 @@ function request(path) {
       },
     );
     req.on('error', reject);
+    req.end();
   });
 }
 
-test('GET / serves the image game server landing page', async () => {
+test('GET / serves the game creation dashboard', async () => {
   const response = await request('/');
 
   assert.equal(response.statusCode, 200);
   assert.match(response.headers['content-type'], /^text\/html/);
   assert.match(response.body, /Image Game Server/);
+  assert.match(response.body, /Start new game/);
+  assert.match(response.body, /Recent games/);
+  assert.match(response.body, /dashboard\.js/);
 });
 
 test('GET /health exposes useful non-secret service health metadata', async () => {
@@ -68,8 +73,39 @@ test('GET /users responds successfully', async () => {
   assert.equal(response.body, 'respond with a resource');
 });
 
-test('GET /room responds successfully', async () => {
-  const response = await request('/room');
-  assert.equal(response.statusCode, 200);
-  assert.equal(response.body, 'respond with a resource');
+test('POST /room creates a lobby with a unique slug and GET /room lists it', async () => {
+  const createdResponse = await request('/room', { method: 'POST' });
+  assert.equal(createdResponse.statusCode, 201);
+  const created = JSON.parse(createdResponse.body);
+  assert.match(created.id, /^[A-F0-9]{8}$/);
+  assert.equal(created.state, 'lobby');
+  assert.equal(created.playerCount, 0);
+
+  const listResponse = await request('/room');
+  assert.equal(listResponse.statusCode, 200);
+  const listed = JSON.parse(listResponse.body);
+  assert.equal(listed.games.some((game) => game.id === created.id), true);
+});
+
+test('GET /room/:slug serves detail UI and /data exposes the process-local snapshot', async () => {
+  const created = JSON.parse((await request('/room', { method: 'POST' })).body);
+
+  const detailResponse = await request(`/room/${created.id}`);
+  assert.equal(detailResponse.statusCode, 200);
+  assert.match(detailResponse.headers['content-type'], /^text\/html/);
+  assert.match(detailResponse.body, /Jump to phase/);
+  assert.match(detailResponse.body, /Players &amp; images/);
+  assert.match(detailResponse.body, /room-detail\.js/);
+
+  const dataResponse = await request(`/room/${created.id}/data`);
+  assert.equal(dataResponse.statusCode, 200);
+  const snapshot = JSON.parse(dataResponse.body);
+  assert.equal(snapshot.id, created.id);
+  assert.equal(snapshot.state, 'lobby');
+  assert.deepEqual(snapshot.users, []);
+});
+
+test('GET /room rejects unsafe detail ids instead of serving the default room', async () => {
+  const response = await request('/room/not%20valid');
+  assert.equal(response.statusCode, 400);
 });

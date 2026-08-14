@@ -69,6 +69,7 @@ class Connection {
     users = new Map();
     horde = new Horde();
     dalle = new Dalle();
+    this.getGameState();
     this.getUsers();
     this.io.sockets.emit('reset-clients');
   };

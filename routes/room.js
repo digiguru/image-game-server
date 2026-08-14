@@ -4,6 +4,7 @@ const { defaultRegistry } = require('../chat');
 const { normaliseGameID } = require('../game-session');
 
 const router = express.Router();
+const publicRoot = path.resolve(__dirname, '..', 'public');
 
 router.get('/', (_req, res) => {
   res.json({ games: defaultRegistry.list() });
@@ -25,7 +26,7 @@ router.get('/:roomID', (req, res) => {
   if (roomID === 'default' && req.params.roomID !== 'default') {
     return res.status(400).send('Invalid game id');
   }
-  return res.sendFile(path.join(__dirname, '..', 'public', 'room.html'));
+  return res.sendFile('room.html', { root: publicRoot });
 });
 
 module.exports = router;

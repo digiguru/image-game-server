@@ -8,9 +8,11 @@
   },
   "scripts": {
     "start": "node ./bin/www",
-    "build": "node --check app.js && node --check socket-server.js && node --check api/socket-io.js && node --check game-session.js && node --check game-service.js && node --check image-providers.js && node --check chat.js && node --check dalle.js && node --check horde.js && node --check routes/index.js && node --check routes/room.js && node --check routes/users.js && node --check bin/www && node --check test/routes.test.js && node --check test/socket-server.test.js && node --check test/game-session.test.js && node --check test/game-service.test.js && node --check test/image-providers.test.js && node --check test/chat.test.js && node --check test/horde.test.js && node --check test/dalle.test.js",
+    "build": "node --check app.js && node --check socket-server.js && node --check api/socket-io.js && node --check game-session.js && node --check game-service.js && node --check image-providers.js && node --check logger.js && node --check chat.js && node --check dalle.js && node --check horde.js && node --check routes/index.js && node --check routes/room.js && node --check routes/users.js && node --check bin/www && node --check test/routes.test.js && node --check test/socket-server.test.js && node --check test/game-session.test.js && node --check test/game-service.test.js && node --check test/image-providers.test.js && node --check test/logger.test.js && node --check test/chat.test.js && node --check test/horde.test.js && node --check test/dalle.test.js",
     "lint": "eslint .",
-    "test": "node --test"
+    "test": "node --test",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-lines=70 --test-coverage-functions=60 --test-coverage-branches=50",
+    "check": "npm run lint && npm run test:coverage && npm run build"
   },
   "dependencies": {
     "cookie-parser": "~1.4.7",

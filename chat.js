@@ -21,10 +21,16 @@ function fakeWaitForServer() {
   });
 }
 
+function extractDalleImage(output) {
+  const image = output?.data?.[0]?.url;
+  return image ? { image } : undefined;
+}
+
 class Connection {
   constructor(io, socket) {
     this.socket = socket;
     this.io = io;
+    this.userID = null;
 
     socket.on('reset', () => this.reset());
 
@@ -101,7 +107,7 @@ class Connection {
 
   mockImage = () => {
     console.log('Creating mock image');
-    return { image: 'http://placekitten.com/g/512/512' };
+    return { image: 'https://placehold.co/512x512?text=Mock+Image' };
   };
 
   async generateImage(prompt) {
@@ -124,9 +130,8 @@ class Connection {
     if (generator === 'Dall-e') {
       try {
         const output = await dalle.promiseImage(prompt);
-        this.debug('DALLE Output', output?.data?.data);
-        const image = output?.data?.data?.[0]?.url;
-        return image ? { image } : undefined;
+        this.debug('DALLE Output', output?.data);
+        return extractDalleImage(output);
       } catch (err) {
         this.debug('dalle promiseImageErr', err);
         return undefined;
@@ -159,6 +164,11 @@ class Connection {
   }
 
   handleAddUser({ name, userID }) {
+    if (this.userID && this.userID !== userID) {
+      users.delete(this.userID);
+    }
+
+    this.userID = userID;
     const user = {
       userID,
       name,
@@ -218,7 +228,10 @@ class Connection {
   }
 
   disconnect() {
-    users.delete(this.socket.id);
+    if (this.userID) {
+      users.delete(this.userID);
+      this.getUsers();
+    }
   }
 }
 
@@ -229,3 +242,4 @@ function chat(io) {
 }
 
 module.exports = chat;
+module.exports.extractDalleImage = extractDalleImage;

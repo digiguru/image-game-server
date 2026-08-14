@@ -2,6 +2,7 @@ const { after, before, test } = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
 const app = require('../app');
+const { version } = require('../package.json');
 
 let server;
 let port;
@@ -40,23 +41,25 @@ function request(path) {
   });
 }
 
-test('GET / serves the landing page', async () => {
+test('GET / serves the image game server landing page', async () => {
   const response = await request('/');
 
   assert.equal(response.statusCode, 200);
   assert.match(response.headers['content-type'], /^text\/html/);
-  assert.match(response.body, /Welcome to Express/);
+  assert.match(response.body, /Image Game Server/);
 });
 
-test('GET /health exposes a health response', async () => {
+test('GET /health exposes useful non-secret service health metadata', async () => {
   const response = await request('/health');
 
   assert.equal(response.statusCode, 200);
   assert.match(response.headers['content-type'], /^application\/json/);
-  assert.deepEqual(JSON.parse(response.body), {
-    name: 'image-game-server',
-    status: 'ok',
-  });
+  const health = JSON.parse(response.body);
+  assert.equal(health.name, 'image-game-server');
+  assert.equal(health.status, 'ok');
+  assert.equal(health.version, version);
+  assert.equal(Number.isInteger(health.uptimeSeconds), true);
+  assert.match(health.timestamp, /^\d{4}-\d{2}-\d{2}T/);
 });
 
 test('GET /users responds successfully', async () => {

@@ -1,14 +1,22 @@
-<html>
-
+<!doctype html>
+<html lang="en">
 <head>
-  <title>Express</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Realtime backend for the AI Image Game">
+  <title>Image Game Server</title>
   <link rel="stylesheet" href="/stylesheets/style.css">
 </head>
-
 <body>
-  <h1>Express</h1>
-  <p>Welcome to Express</p>
-  <p>Create <a href="room">room</a></p>
+  <main>
+    <p class="eyebrow">Realtime game service</p>
+    <h1>Image Game Server</h1>
+    <p>This service powers rooms, prompts, image generation and voting for the AI Image Game.</p>
+    <nav aria-label="Service links">
+      <a class="button" href="https://image-game-client.vercel.app/">Open the game</a>
+      <a href="/health">View health JSON</a>
+    </nav>
+    <p class="note">Game state is currently process-local. Persistence and production security hardening are intentionally deferred.</p>
+  </main>
 </body>
-
 </html>

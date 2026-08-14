@@ -87,13 +87,15 @@ test('POST /room creates a lobby with a unique slug and GET /room lists it', asy
   assert.equal(listed.games.some((game) => game.id === created.id), true);
 });
 
-test('GET /room/:slug serves detail UI and /data exposes the process-local snapshot', async () => {
+test('GET /room/:slug serves animated detail UI and /data exposes the process-local snapshot', async () => {
   const created = JSON.parse((await request('/room', { method: 'POST' })).body);
 
   const detailResponse = await request(`/room/${created.id}`);
   assert.equal(detailResponse.statusCode, 200);
   assert.match(detailResponse.headers['content-type'], /^text\/html/);
-  assert.match(detailResponse.body, /Jump to phase/);
+  assert.match(detailResponse.body, /Game journey/);
+  assert.match(detailResponse.body, /Current phase/);
+  assert.match(detailResponse.body, /phase-journey/);
   assert.match(detailResponse.body, /Players &amp; images/);
   assert.match(detailResponse.body, /room-detail\.js/);
 
@@ -103,6 +105,25 @@ test('GET /room/:slug serves detail UI and /data exposes the process-local snaps
   assert.equal(snapshot.id, created.id);
   assert.equal(snapshot.state, 'lobby');
   assert.deepEqual(snapshot.users, []);
+});
+
+test('animated detail assets include state transitions and reduced-motion handling', async () => {
+  const [scriptResponse, styleResponse] = await Promise.all([
+    request('/room-detail.js'),
+    request('/stylesheets/style.css'),
+  ]);
+
+  assert.equal(scriptResponse.statusCode, 200);
+  assert.match(scriptResponse.body, /SNAPSHOT_INTERVAL_MS = 1500/);
+  assert.match(scriptResponse.body, /startViewTransition/);
+  assert.match(scriptResponse.body, /celebrateResults/);
+  assert.match(scriptResponse.body, /phase-step/);
+
+  assert.equal(styleResponse.statusCode, 200);
+  assert.match(styleResponse.body, /data-game-state="ideation"/);
+  assert.match(styleResponse.body, /@keyframes phase-arrive/);
+  assert.match(styleResponse.body, /@keyframes result-burst/);
+  assert.match(styleResponse.body, /prefers-reduced-motion: reduce/);
 });
 
 test('GET /room rejects unsafe detail ids instead of serving the default room', async () => {

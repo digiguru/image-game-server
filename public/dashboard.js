@@ -23,14 +23,14 @@ function saveRecentGames(games) {
 
 function rememberGame(roomID) {
   const now = new Date().toISOString();
-  const existing = loadRecentGames().filter((game) => game.roomID !== roomID);
-  const previous = loadRecentGames().find((game) => game.roomID === roomID);
+  const games = loadRecentGames();
+  const previous = games.find((game) => game.roomID === roomID);
   const game = {
     roomID,
     createdAt: previous?.createdAt || now,
     lastOpenedAt: now,
   };
-  saveRecentGames([game, ...existing]);
+  saveRecentGames([game, ...games.filter((item) => item.roomID !== roomID)]);
   return game;
 }
 
@@ -71,6 +71,13 @@ async function createGame() {
   const button = document.querySelector('#start-game');
   const status = document.querySelector('#new-game-status');
   const fallback = document.querySelector('#popup-fallback');
+  const popup = globalThis.open('about:blank', '_blank');
+
+  if (popup) {
+    popup.opener = null;
+    popup.document.title = 'Creating Image Game…';
+    popup.document.body.textContent = 'Creating game…';
+  }
 
   button.disabled = true;
   status.textContent = 'Creating game…';
@@ -86,12 +93,13 @@ async function createGame() {
 
     status.textContent = `Game ${game.id} created in the lobby.`;
     const url = hostUrl(game.id);
-    const popup = globalThis.open(url, '_blank', 'noopener,noreferrer');
 
+    if (popup) popup.location.replace(url);
     fallback.href = url;
     fallback.textContent = `Open host for ${game.id}`;
     fallback.hidden = Boolean(popup);
   } catch (error) {
+    if (popup) popup.close();
     status.textContent = error instanceof Error ? error.message : 'Could not create the game.';
   } finally {
     button.disabled = false;

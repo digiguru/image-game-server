@@ -70,6 +70,17 @@ test('game state changes are broadcast to connected clients', () => {
   assert.equal(latest('gameState'), 'voting');
 });
 
+test('reset returns all clients to the lobby state', () => {
+  const { connect, latest } = createHarness();
+  const socket = connect('socket-host');
+
+  socket.trigger('setGameState', 'results');
+  socket.trigger('reset');
+
+  assert.equal(latest('gameState'), 'lobby');
+  assert.deepEqual(latest('users'), []);
+});
+
 test('users can join, vote and unvote', () => {
   const { connect, latest } = createHarness();
   const alice = connect('socket-alice');

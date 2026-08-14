@@ -1,36 +1,21 @@
-const Dalle = require('./dalle');
-const Horde = require('./horde');
 const { GameRegistry } = require('./game-session');
+const { GameService } = require('./game-service');
+const { ImageProviderRegistry } = require('./image-providers');
 
-const registry = new GameRegistry();
-const horde = new Horde();
-const dalle = new Dalle();
-
-function randomIntFromInterval(min, max) {
-  return Math.floor(Math.random() * (max - min + 1) + min);
-}
-
-function fakeWaitForServer() {
-  return new Promise((resolve) => {
-    const length = randomIntFromInterval(250, 1000);
-    setTimeout(resolve, length);
-  });
-}
-
-function extractDalleImage(output) {
-  const image = output?.data?.[0]?.url;
-  return image ? { image } : undefined;
-}
+const defaultRegistry = new GameRegistry();
+const defaultProviders = new ImageProviderRegistry();
 
 class Connection {
-  constructor(io, socket) {
+  constructor(io, socket, { registry, providers }) {
     this.socket = socket;
     this.io = io;
+    this.registry = registry;
+    this.providers = providers;
     this.roomID = 'default';
     this.userID = null;
     this.socket.join?.(this.roomID);
 
-    socket.on('joinGame', (payload) => this.joinGame(payload));
+    socket.on('joinGame', (payload) => this.safe(() => this.joinGame(payload)));
     socket.on('reset', () => this.safe(() => this.reset()));
     socket.on('getGameState', () => this.getGameState());
     socket.on('setGameState', (state) => this.safe(() => this.handleSetGameState(state)));
@@ -38,14 +23,22 @@ class Connection {
     socket.on('getUsers', () => this.getUsers());
     socket.on('addUser', (payload) => this.safe(() => this.handleAddUser(payload)));
     socket.on('addPrompt', (payload) => this.safe(() => this.handleAddPrompt(payload)));
-    socket.on('updateImages', () => this.updateImages());
+    socket.on('updateImages', () => this.safe(() => this.updateImages()));
     socket.on('vote', (payload) => this.safe(() => this.handleVote(payload)));
     socket.on('unvote', (payload) => this.safe(() => this.handleUnvote(payload)));
     socket.on('disconnect', () => this.disconnect());
   }
 
   get game() {
-    return registry.get(this.roomID);
+    return this.registry.get(this.roomID);
+  }
+
+  get gameService() {
+    return new GameService({
+      game: this.game,
+      providers: this.providers,
+      onUsersChanged: () => this.getUsers(),
+    });
   }
 
   roomEmit(event, payload) {
@@ -55,16 +48,24 @@ class Connection {
 
   safe(action) {
     try {
-      return action();
+      const result = action();
+      if (result && typeof result.catch === 'function') {
+        return result.catch((error) => this.emitProtocolError(error));
+      }
+      return result;
     } catch (error) {
-      this.socket.emit?.('protocolError', { message: error.message });
+      this.emitProtocolError(error);
       return undefined;
     }
   }
 
+  emitProtocolError(error) {
+    this.socket.emit?.('protocolError', { message: error.message });
+  }
+
   joinGame(payload = {}) {
     const requestedRoom = typeof payload === 'string' ? payload : payload.roomID;
-    const nextGame = registry.get(requestedRoom);
+    const nextGame = this.registry.get(requestedRoom);
     if (this.userID) this.game.removeUser(this.userID);
     this.socket.leave?.(this.roomID);
     this.roomID = nextGame.id;
@@ -75,10 +76,6 @@ class Connection {
     this.getUsers();
   }
 
-  debug(...args) {
-    console.log(`[game:${this.roomID}]`, ...args);
-  }
-
   reset() {
     this.game.reset();
     this.getGameState();
@@ -86,54 +83,8 @@ class Connection {
     this.roomEmit('reset-clients');
   }
 
-  async updateImages() {
-    for (const user of this.game.users.values()) {
-      if (this.game.generator === 'Mock') {
-        await fakeWaitForServer();
-        this.updateImageData(this.mockImage(), user.userID);
-      } else if (this.game.generator === 'Stable Horde' && !user.image && user.imageid) {
-        try {
-          const output = await horde.checkImage(user.imageid);
-          if (output?.done === true && output.generations?.[0]?.img) {
-            this.updateImageData({ image: output.generations[0].img }, user.userID);
-          }
-        } catch (error) {
-          this.debug('Stable Horde image check failed', error.message);
-        }
-      }
-    }
-  }
-
-  mockImage() {
-    return { image: 'https://placehold.co/512x512?text=Mock+Image' };
-  }
-
-  async generateImage(prompt) {
-    if (this.game.generator === 'Mock') {
-      await fakeWaitForServer();
-      return this.mockImage();
-    }
-
-    if (this.game.generator === 'Stable Horde') {
-      try {
-        const output = await horde.promiseImage(prompt);
-        return output?.id ? { imageid: output.id } : undefined;
-      } catch (error) {
-        this.debug('Stable Horde generation failed', error.message);
-        return undefined;
-      }
-    }
-
-    if (this.game.generator === 'Dall-e') {
-      try {
-        return extractDalleImage(await dalle.promiseImage(prompt));
-      } catch (error) {
-        this.debug('DALL-E generation failed', error.message);
-        return undefined;
-      }
-    }
-
-    return undefined;
+  updateImages() {
+    return this.gameService.refreshImages();
   }
 
   getGameState() {
@@ -161,15 +112,8 @@ class Connection {
     this.getUsers();
   }
 
-  updateImageData(data, userID) {
-    if (this.game.updateImageData(data, userID)) this.getUsers();
-  }
-
   handleAddPrompt(payload = {}) {
-    const { prompt, userID } = payload;
-    if (!this.game.setPrompt({ prompt, userID })) return;
-    this.getUsers();
-    this.generateImage(prompt).then((imageData) => this.updateImageData(imageData, userID));
+    return this.gameService.addPrompt(payload);
   }
 
   handleVote(payload = {}) {
@@ -187,10 +131,10 @@ class Connection {
   }
 }
 
-function chat(io) {
-  io.on('connection', (socket) => new Connection(io, socket));
+function chat(io, { registry = defaultRegistry, providers = defaultProviders } = {}) {
+  io.on('connection', (socket) => new Connection(io, socket, { registry, providers }));
 }
 
 module.exports = chat;
-module.exports.extractDalleImage = extractDalleImage;
-module.exports.registry = registry;
+module.exports.Connection = Connection;
+module.exports.defaultRegistry = defaultRegistry;

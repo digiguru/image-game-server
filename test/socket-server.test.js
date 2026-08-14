@@ -37,30 +37,13 @@ async function nextApplicationPacket(socket, nextMessage) {
   return packet;
 }
 
-test('shared server factory attaches Socket.IO to an HTTP server', () => {
-  const { server, io } = createSocketServer();
-
-  assert.ok(server instanceof http.Server);
-  assert.ok(server.listeners('upgrade').length > 0);
-  assert.equal(io.of('/').listenerCount('connection'), 1);
-
-  io.close();
-});
-
-test('Vercel Socket.IO entry point exports an upgrade-capable HTTP server', () => {
-  const server = require('../api/socket-io');
-
-  assert.ok(server instanceof http.Server);
-  assert.ok(server.listeners('upgrade').length > 0);
-});
-
-test('realtime game state works over the actual WebSocket transport', { timeout: 5000 }, async () => {
-  const { server, io } = createSocketServer();
+async function assertGameStateOverWebSocket(path) {
+  const { server, io } = createSocketServer(undefined, { path });
 
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address();
   const socket = new globalThis.WebSocket(
-    `ws://127.0.0.1:${address.port}/socket.io/?EIO=4&transport=websocket`,
+    `ws://127.0.0.1:${address.port}${path}/?EIO=4&transport=websocket`,
   );
   const nextMessage = createMessageQueue(socket);
 
@@ -82,4 +65,29 @@ test('realtime game state works over the actual WebSocket transport', { timeout:
 
   socket.close();
   await new Promise((resolve) => io.close(resolve));
+}
+
+test('shared server factory attaches Socket.IO to an HTTP server', () => {
+  const { server, io } = createSocketServer();
+
+  assert.ok(server instanceof http.Server);
+  assert.ok(server.listeners('upgrade').length > 0);
+  assert.equal(io.of('/').listenerCount('connection'), 1);
+
+  io.close();
+});
+
+test('Vercel Socket.IO entry point exports an upgrade-capable HTTP server', () => {
+  const server = require('../api/socket-io');
+
+  assert.ok(server instanceof http.Server);
+  assert.ok(server.listeners('upgrade').length > 0);
+});
+
+test('realtime game state works over the local WebSocket transport', { timeout: 5000 }, async () => {
+  await assertGameStateOverWebSocket('/socket.io');
+});
+
+test('realtime game state works on the Vercel function route', { timeout: 5000 }, async () => {
+  await assertGameStateOverWebSocket('/api/socket-io');
 });

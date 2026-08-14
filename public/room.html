@@ -7,33 +7,28 @@
   <title>Image Game Details</title>
   <link rel="stylesheet" href="/stylesheets/style.css">
 </head>
-<body>
-  <main class="wide">
+<body data-game-state="lobby">
+  <main class="wide game-detail">
     <p class="eyebrow">In-memory game dashboard</p>
     <p><a href="/">← Back to games</a></p>
-    <div class="heading-row">
+    <div class="heading-row game-heading">
       <div>
         <h1>Game <code id="room-id">…</code></h1>
-        <p id="room-status" role="status">Loading game snapshot…</p>
+        <p id="room-status" class="game-status" role="status" aria-live="polite">Loading game snapshot…</p>
       </div>
       <button id="refresh-snapshot" type="button" class="secondary">Refresh snapshot</button>
     </div>
 
-    <section aria-labelledby="launch-heading">
-      <h2 id="launch-heading">Open game</h2>
-      <div class="actions">
-        <a id="open-host" class="button" target="_blank" rel="noopener noreferrer">Open host</a>
-        <a id="open-player" class="button secondary-link" target="_blank" rel="noopener noreferrer">Open player</a>
+    <section aria-labelledby="phase-heading" class="phase-section">
+      <div class="section-heading">
+        <p class="eyebrow">Game journey</p>
+        <h2 id="phase-heading">Current phase</h2>
+        <p>Follow the room from lobby to results. Selecting a phase opens the host client in a new tab and moves this room there.</p>
       </div>
+      <nav id="phase-actions" class="phase-journey" aria-label="Game phases"></nav>
     </section>
 
-    <section aria-labelledby="phase-heading">
-      <h2 id="phase-heading">Jump to phase</h2>
-      <p>Each phase opens the host client in a new tab and moves this room to that phase.</p>
-      <div id="phase-actions" class="actions" aria-label="Game phases"></div>
-    </section>
-
-    <section aria-labelledby="players-heading">
+    <section aria-labelledby="players-heading" class="players-section">
       <div class="heading-row">
         <div>
           <h2 id="players-heading">Players &amp; images</h2>
@@ -42,6 +37,14 @@
       </div>
       <div id="player-grid" class="player-grid"></div>
       <p id="players-empty" class="note" hidden>No players have joined this game yet.</p>
+    </section>
+
+    <section aria-labelledby="launch-heading">
+      <h2 id="launch-heading">Open game</h2>
+      <div class="actions">
+        <a id="open-host" class="button" target="_blank" rel="noopener noreferrer">Open host</a>
+        <a id="open-player" class="button secondary-link" target="_blank" rel="noopener noreferrer">Open player</a>
+      </div>
     </section>
 
     <section aria-labelledby="recent-heading">

@@ -11,7 +11,7 @@ Node.js/Express + Socket.IO backend for the multiplayer Image Game. Players join
 - Supports prompt submission, voting/unvoting and game resets.
 - Validates room IDs, game states, generators, player identities/names and prompts.
 
-> Game state is currently in-memory only. Restarting or moving between independent server instances can lose/split rooms. Shared persistence is intentionally deferred to the later production-hardening stage.
+> Game state is currently in-memory only. Restarting or moving between independent server instances can lose or split rooms. Shared persistence is intentionally deferred to the later production-hardening stage.
 
 ## Requirements
 
@@ -122,32 +122,24 @@ No external image-generation APIs are called by the automated suite.
 
 ## CI
 
-GitHub Actions runs on pull requests and pushes to `main` using Node.js 24. CI performs:
-
-1. deterministic dependency install
-2. production dependency audit
-3. `npm run lint`
-4. `npm test`
-5. `npm run build`
-6. startup smoke test against `/health`
-
-CodeQL runs separately.
+GitHub Actions runs on pull requests and pushes to `main` using Node.js 24. CI performs deterministic dependency install, production dependency audit, lint, tests, syntax/build validation and a startup `/health` smoke test. CodeQL runs separately.
 
 ## Project structure
 
 ```text
 app.js                    Express application setup
 api/socket-io.js           Vercel Socket.IO entry point
-bin/www                    Local server entry point\ socket-server.js            Shared HTTP + Socket.IO server factory
-chat.js                   Socket.IO transport/protocol mapping
-game-session.js           Game domain state + room registry
-game-service.js           Game/image orchestration
-image-providers.js        Provider adapters and normalized image contract
-dalle.js                  Low-level OpenAI image client wrapper
-horde.js                  Low-level Stable Horde client wrapper
-routes/                    Express routes
-test/                      Node.js tests
-.github/workflows/ci.yml   CI validation
+bin/www                    Local server entry point
+socket-server.js           Shared HTTP + Socket.IO server factory
+chat.js                    Socket.IO transport/protocol mapping
+game-session.js            Game domain state + room registry
+game-service.js            Game/image orchestration
+image-providers.js         Provider adapters and normalized image contract
+dalle.js                   Low-level OpenAI image client wrapper
+horde.js                   Low-level Stable Horde client wrapper
+routes/                     Express routes
+test/                       Node.js tests
+.github/workflows/ci.yml    CI validation
 ```
 
 ## Deferred production hardening

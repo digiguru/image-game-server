@@ -1,11 +1,10 @@
 const Dalle = require('./dalle');
 const Horde = require('./horde');
+const { GameRegistry } = require('./game-session');
 
-let gameState = 'lobby';
-let generator = 'Dall-e';
-let users = new Map();
-let horde = new Horde();
-let dalle = new Dalle();
+const registry = new GameRegistry();
+const horde = new Horde();
+const dalle = new Dalle();
 
 function randomIntFromInterval(min, max) {
   return Math.floor(Math.random() * (max - min + 1) + min);
@@ -14,10 +13,7 @@ function randomIntFromInterval(min, max) {
 function fakeWaitForServer() {
   return new Promise((resolve) => {
     const length = randomIntFromInterval(250, 1000);
-    setTimeout(() => {
-      console.log('Waited for', length);
-      resolve(`did a wait for ${length}`);
-    }, length);
+    setTimeout(resolve, length);
   });
 }
 
@@ -30,217 +26,171 @@ class Connection {
   constructor(io, socket) {
     this.socket = socket;
     this.io = io;
+    this.roomID = 'default';
     this.userID = null;
+    this.socket.join?.(this.roomID);
 
-    socket.on('reset', () => this.reset());
-
+    socket.on('joinGame', (payload) => this.joinGame(payload));
+    socket.on('reset', () => this.safe(() => this.reset()));
     socket.on('getGameState', () => this.getGameState());
-    socket.on('setGameState', (state) => this.handleSetGameState(state));
-
-    socket.on('setGenerator', (value) => this.handleSetGenerator(value));
-
+    socket.on('setGameState', (state) => this.safe(() => this.handleSetGameState(state)));
+    socket.on('setGenerator', (value) => this.safe(() => this.handleSetGenerator(value)));
     socket.on('getUsers', () => this.getUsers());
-    socket.on('addUser', ({ name, userID }) => this.handleAddUser({ name, userID }));
-
-    socket.on('addPrompt', ({ prompt, userID }) => this.handleAddPrompt({ prompt, userID }));
-
+    socket.on('addUser', (payload) => this.safe(() => this.handleAddUser(payload)));
+    socket.on('addPrompt', (payload) => this.safe(() => this.handleAddPrompt(payload)));
     socket.on('updateImages', () => this.updateImages());
-
-    socket.on('vote', ({ votedBy, votedFor }) => this.handleVote({ votedBy, votedFor }));
-    socket.on('unvote', ({ votedBy, votedFor }) => this.handleUnvote({ votedBy, votedFor }));
-
+    socket.on('vote', (payload) => this.safe(() => this.handleVote(payload)));
+    socket.on('unvote', (payload) => this.safe(() => this.handleUnvote(payload)));
     socket.on('disconnect', () => this.disconnect());
-    socket.on('connect_error', (err) => {
-      console.log(`connect_error due to ${err.message}`);
-    });
-    socket.onAny((event, ...args) => {
-      console.log(event, args);
-    });
   }
 
-  debug = (...args) => {
-    console.log(args);
-    this.io.sockets.emit('debug', { debug: args, time: Date.now() });
-  };
+  get game() {
+    return registry.get(this.roomID);
+  }
 
-  reset = () => {
-    gameState = 'lobby';
-    generator = 'Stable Horde';
-    users = new Map();
-    horde = new Horde();
-    dalle = new Dalle();
-    this.getGameState();
-    this.getUsers();
-    this.io.sockets.emit('reset-clients');
-  };
+  roomEmit(event, payload) {
+    if (this.io.to) this.io.to(this.roomID).emit(event, payload);
+    else this.io.sockets.emit(event, payload);
+  }
 
-  async updateImages() {
-    this.debug('UPDATE ALL IMAGES', users.keys());
-
-    for (const key of users.keys()) {
-      const user = users.get(key);
-      this.debug('ROW', user);
-
-      if (generator === 'Mock') {
-        const image = await fakeWaitForServer().then(() => this.mockImage());
-        this.updateImageData(image, key);
-        continue;
-      }
-
-      if (generator === 'Stable Horde') {
-        if (!user.image && user.imageid) {
-          try {
-            const output = await horde.checkImage(user.imageid);
-            this.debug('CheckImage', output);
-            if (output && output.done === true && output.generations?.[0]?.img) {
-              this.updateImageData({ image: output.generations[0].img }, key);
-            }
-          } catch (err) {
-            this.debug('CheckImageErr', err);
-          }
-        }
-        continue;
-      }
-
-      this.debug('GENERATOR NOT SUPPORTED', generator);
+  safe(action) {
+    try {
+      return action();
+    } catch (error) {
+      this.socket.emit?.('protocolError', { message: error.message });
+      return undefined;
     }
   }
 
-  mockImage = () => {
-    console.log('Creating mock image');
+  joinGame(payload = {}) {
+    const requestedRoom = typeof payload === 'string' ? payload : payload.roomID;
+    const nextGame = registry.get(requestedRoom);
+    if (this.userID) this.game.removeUser(this.userID);
+    this.socket.leave?.(this.roomID);
+    this.roomID = nextGame.id;
+    this.socket.join?.(this.roomID);
+    this.userID = null;
+    this.socket.emit?.('joinedGame', { roomID: this.roomID });
+    this.getGameState();
+    this.getUsers();
+  }
+
+  debug(...args) {
+    console.log(`[game:${this.roomID}]`, ...args);
+  }
+
+  reset() {
+    this.game.reset();
+    this.getGameState();
+    this.getUsers();
+    this.roomEmit('reset-clients');
+  }
+
+  async updateImages() {
+    for (const user of this.game.users.values()) {
+      if (this.game.generator === 'Mock') {
+        await fakeWaitForServer();
+        this.updateImageData(this.mockImage(), user.userID);
+      } else if (this.game.generator === 'Stable Horde' && !user.image && user.imageid) {
+        try {
+          const output = await horde.checkImage(user.imageid);
+          if (output?.done === true && output.generations?.[0]?.img) {
+            this.updateImageData({ image: output.generations[0].img }, user.userID);
+          }
+        } catch (error) {
+          this.debug('Stable Horde image check failed', error.message);
+        }
+      }
+    }
+  }
+
+  mockImage() {
     return { image: 'https://placehold.co/512x512?text=Mock+Image' };
-  };
+  }
 
   async generateImage(prompt) {
-    if (generator === 'Mock') {
+    if (this.game.generator === 'Mock') {
       await fakeWaitForServer();
       return this.mockImage();
     }
 
-    if (generator === 'Stable Horde') {
+    if (this.game.generator === 'Stable Horde') {
       try {
         const output = await horde.promiseImage(prompt);
-        this.debug('FIRST', output);
         return output?.id ? { imageid: output.id } : undefined;
-      } catch (err) {
-        this.debug('promiseImageErr', err);
+      } catch (error) {
+        this.debug('Stable Horde generation failed', error.message);
         return undefined;
       }
     }
 
-    if (generator === 'Dall-e') {
+    if (this.game.generator === 'Dall-e') {
       try {
-        const output = await dalle.promiseImage(prompt);
-        this.debug('DALLE Output', output?.data);
-        return extractDalleImage(output);
-      } catch (err) {
-        this.debug('dalle promiseImageErr', err);
+        return extractDalleImage(await dalle.promiseImage(prompt));
+      } catch (error) {
+        this.debug('DALL-E generation failed', error.message);
         return undefined;
       }
     }
 
-    this.debug('GENERATOR NOT SUPPORTED', generator);
     return undefined;
   }
 
   getGameState() {
-    this.io.sockets.emit('gameState', gameState);
+    this.roomEmit('gameState', this.game.state);
   }
 
   handleSetGameState(value) {
-    gameState = value;
+    this.game.setState(value);
     this.getGameState();
   }
 
   handleSetGenerator(value) {
-    generator = value;
+    this.game.setGenerator(value);
   }
 
   getUsers() {
-    const output = Array.from(users.values()).map((user) => ({
-      ...user,
-      votes: Array.from(user.votes.values()),
-    }));
-    this.io.sockets.emit('users', output);
+    this.roomEmit('users', this.game.snapshotUsers());
   }
 
-  handleAddUser({ name, userID }) {
-    if (this.userID && this.userID !== userID) {
-      users.delete(this.userID);
-    }
-
+  handleAddUser(payload = {}) {
+    const { name, userID } = payload;
+    if (this.userID && this.userID !== userID) this.game.removeUser(this.userID);
+    this.game.addUser({ name, userID });
     this.userID = userID;
-    const user = {
-      userID,
-      name,
-      time: Date.now(),
-      votes: new Set(),
-    };
-    users.set(userID, user);
     this.getUsers();
   }
 
-  updateImageData(object, userID) {
-    const promptedUser = users.get(userID);
-    if (!object || !promptedUser) {
-      return;
-    }
-
-    if (object.image) {
-      users.set(userID, { ...promptedUser, image: object.image });
-      this.getUsers();
-      return;
-    }
-
-    if (object.imageid) {
-      users.set(userID, { ...promptedUser, imageid: object.imageid });
-      this.getUsers();
-    }
+  updateImageData(data, userID) {
+    if (this.game.updateImageData(data, userID)) this.getUsers();
   }
 
-  handleAddPrompt({ prompt, userID }) {
-    const oldUser = users.get(userID);
-
-    if (oldUser && prompt && oldUser.prompt !== prompt) {
-      users.set(userID, { ...oldUser, prompt });
-      this.getUsers();
-      this.generateImage(prompt).then((imageData) => {
-        this.updateImageData(imageData, userID);
-      });
-    }
+  handleAddPrompt(payload = {}) {
+    const { prompt, userID } = payload;
+    if (!this.game.setPrompt({ prompt, userID })) return;
+    this.getUsers();
+    this.generateImage(prompt).then((imageData) => this.updateImageData(imageData, userID));
   }
 
-  handleVote({ votedBy, votedFor }) {
-    const oldUser = users.get(votedFor);
-    if (oldUser && votedBy && votedFor && !oldUser.votes.has(votedBy)) {
-      oldUser.votes.add(votedBy);
-      users.set(votedFor, oldUser);
-      this.getUsers();
-    }
+  handleVote(payload = {}) {
+    if (this.game.vote(payload)) this.getUsers();
   }
 
-  handleUnvote({ votedBy, votedFor }) {
-    const oldUser = users.get(votedFor);
-    if (oldUser && votedBy && votedFor && oldUser.votes.has(votedBy)) {
-      oldUser.votes.delete(votedBy);
-      users.set(votedFor, oldUser);
-      this.getUsers();
-    }
+  handleUnvote(payload = {}) {
+    if (this.game.unvote(payload)) this.getUsers();
   }
 
   disconnect() {
-    if (this.userID) {
-      users.delete(this.userID);
-      this.getUsers();
-    }
+    if (!this.userID) return;
+    this.game.removeUser(this.userID);
+    this.getUsers();
   }
 }
 
 function chat(io) {
-  io.on('connection', (socket) => {
-    new Connection(io, socket);
-  });
+  io.on('connection', (socket) => new Connection(io, socket));
 }
 
 module.exports = chat;
 module.exports.extractDalleImage = extractDalleImage;
+module.exports.registry = registry;

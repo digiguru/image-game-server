@@ -130,3 +130,23 @@ test('GET /room rejects unsafe detail ids instead of serving the default room', 
   const response = await request('/room/not%20valid');
   assert.equal(response.statusCode, 400);
 });
+
+test('GET /room/:slug is rate limited without throttling the polling data endpoint', async () => {
+  const created = JSON.parse((await request('/room', { method: 'POST' })).body);
+  let response;
+
+  for (let index = 0; index < 120; index += 1) {
+    response = await request(`/room/${created.id}`);
+  }
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.headers['ratelimit-remaining'], '0');
+
+  const limitedResponse = await request(`/room/${created.id}`);
+  assert.equal(limitedResponse.statusCode, 429);
+  assert.match(limitedResponse.body, /Too many requests/);
+  assert.equal(Number.parseInt(limitedResponse.headers['retry-after'], 10) > 0, true);
+
+  const dataResponse = await request(`/room/${created.id}/data`);
+  assert.equal(dataResponse.statusCode, 200);
+});

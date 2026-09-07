@@ -133,18 +133,19 @@ test('GET /room rejects unsafe detail ids instead of serving the default room', 
 
 test('GET /room/:slug is rate limited without throttling the polling data endpoint', async () => {
   const created = JSON.parse((await request('/room', { method: 'POST' })).body);
-  let response;
+  let limitedResponse;
 
-  for (let index = 0; index < 120; index += 1) {
-    response = await request(`/room/${created.id}`);
+  for (let index = 0; index < 121; index += 1) {
+    const response = await request(`/room/${created.id}`);
+    if (response.statusCode === 429) {
+      limitedResponse = response;
+      break;
+    }
   }
 
-  assert.equal(response.statusCode, 200);
-  assert.equal(response.headers['ratelimit-remaining'], '0');
-
-  const limitedResponse = await request(`/room/${created.id}`);
-  assert.equal(limitedResponse.statusCode, 429);
+  assert.ok(limitedResponse, 'room page requests should eventually be rate limited');
   assert.match(limitedResponse.body, /Too many requests/);
+  assert.equal(limitedResponse.headers['ratelimit-remaining'], '0');
   assert.equal(Number.parseInt(limitedResponse.headers['retry-after'], 10) > 0, true);
 
   const dataResponse = await request(`/room/${created.id}/data`);

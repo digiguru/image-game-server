@@ -1,0 +1,30 @@
+name: Refresh Dependabot 25 lockfile
+on:
+  push:
+    branches: [fix/dependabot-25-audit-2026]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Repair vulnerable dependencies
+        run: npm audit fix --ignore-scripts || true
+      - name: Require clean security audit
+        run: npm audit --omit=dev --audit-level=high
+      - name: Save repaired lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "fix(deps): resolve audit failures for PR 25"
+            git push
+          fi
